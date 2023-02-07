@@ -12,7 +12,7 @@ HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'T
 def main(u_path):
 	domain = "www.wix.com"
 	baseUrl = "https://"+domain
-	path = "demone2/barbershop"
+	path = "demone2/phone-and-tablet"
 	url = request.args.get("_URL_")
 	if url:
 		if domain in url:
