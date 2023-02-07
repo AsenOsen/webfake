@@ -27,9 +27,9 @@ def make_request(method, url, headers, post_data = None, retries = 3):
 @app.before_request
 def main():
 	fakeDomain = "192.168.1.208"
-	domain = "www.google.com"
+	domain = "www.wix.com"
 	baseUrl = "https://"+domain
-	path = ""
+	path = "demone2/phone-and-tablet"
 	url = request.args.get("_URL_")
 	if url:
 		url = url.replace(fakeDomain, domain)
@@ -46,9 +46,7 @@ def main():
 		k, v = header
 		if k.lower() not in ['connection', 'host']:
 			headers[k] = v
-			if 'cookie' == k.lower():
-				# TODO: replace domaint in cookie wisely
-				headers[k].replace(fakeDomain, domain)
+	headers['Origin'] = baseUrl
 
 	response = make_request(request.method, url, headers, request.data)
 	data = response.content
@@ -71,15 +69,15 @@ def main():
 
 	responseFake = make_response(data)
 	for header in response.headers:
-		if header.lower() not in ['content-length', 'content-encoding', 'content-security-policy', 'cross-origin-opener-policy']:
+		if header.lower() not in ['content-length', 'content-encoding', 'content-security-policy', 'cross-origin-opener-policy', 'set-cookie']:
 			responseFake.headers[header] = response.headers[header]
-			if header.lower() == 'set-cookie':
-				responseFake.headers[header] = responseFake.headers[header] \
-					.replace(domain, fakeDomain)
-				print(responseFake.headers[header])
+	responseFake.headers['Access-Control-Allow-Origin'] = '*'
+
+	for cookie in response.cookies:
+		responseFake.set_cookie(cookie.name, cookie.value)
+
 	#print(responseFake.headers['content-type'], flush=True)
 	#print(responseFake.headers, flush=True)
-	responseFake.headers['Access-Control-Allow-Origin'] = '*'
 	return responseFake
 
 app.run(host='0.0.0.0', port=443, debug=True, ssl_context=('/root/Desktop/copier/cert.pem', '/root/Desktop/copier/key.pem'))
