@@ -10,14 +10,20 @@ requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 app = Flask(__name__)
 HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'DELETE', 'CONNECT', 'OPTIONS', 'TRACE', 'PATCH']
 
-def make_request(method, url, headers, post_data = None):
-	if method == 'GET':
-		return requests.get(url, headers=headers, allow_redirects=True, verify=False)
-	elif method == "POST":
-		return requests.post(url, headers=headers, data=post_data, allow_redirects=True, verify=False)
-	else:
+def make_request(method, url, headers, post_data = None, retries = 3):
+	if method not in ['GET', 'POST']:
 		raise Exception("unsupported method")
-
+	counter = 0
+	while counter < retries:
+		try:
+			if method == 'GET':
+				return requests.get(url, headers=headers, allow_redirects=True, verify=False)
+			elif method == "POST":
+				return requests.post(url, headers=headers, data=post_data, allow_redirects=True, verify=False)
+		except:
+			print(">>>>>>>>>>>>>>> ERROR, repeating.... ERRURL = " + url, flush=True)
+			counter += 1
+			
 @app.before_request
 def main():
 	fakeDomain = "192.168.1.208"
@@ -44,16 +50,10 @@ def main():
 				# TODO: replace domaint in cookie wisely
 				headers[k].replace(fakeDomain, domain)
 
-	try:
-		response = make_request(request.method, url, headers, request.data)
-	except:
-		print(">>>>>>>>>>>>>>> ERROR, repeating.... ERRURL = " + url, flush=True)
-		response = make_request(request.method, url, headers, request.data)
-
-	print("URL (orig) = "+request.full_path + "\n" + "URL (repl) = "+url + "\n" + "URL (code) = "+str(response.status_code)+"\n", flush=True)
-
+	response = make_request(request.method, url, headers, request.data)
 	data = response.content
 	rtype = response.headers['content-type']
+	print("URL (orig) = "+request.full_path + "\n" + "URL (repl) = "+url + "\n" + "URL (code) = "+str(response.status_code)+"\n", flush=True)
 
 	if 'text' in rtype or 'application/javascript' in rtype:
 		data = data.decode("utf8")
