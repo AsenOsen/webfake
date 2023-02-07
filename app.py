@@ -1,4 +1,4 @@
-from flask import Flask,render_template,request,make_response,redirect
+from flask import Flask,request,make_response
 import requests
 import base64
 import re
@@ -18,23 +18,19 @@ def make_request(method, url, headers, post_data = None):
 	else:
 		raise Exception("unsupported method")
 
-@app.route('/', defaults={'u_path': ''}, methods=HTTP_METHODS)
-@app.route('/<string:u_path>', methods=HTTP_METHODS)
-@app.route('/<path:u_path>', methods=HTTP_METHODS)
-def main(u_path):
+@app.before_request
+def main():
 	fakeDomain = "192.168.1.208"
-	domain = "www.wix.com"
+	domain = "www.google.com"
 	baseUrl = "https://"+domain
-	path = "demone2/phone-and-tablet"
+	path = ""
 	url = request.args.get("_URL_")
 	if url:
-		if fakeDomain in url:
-			url = url.replace(fakeDomain, domain)
-		else:
-			#url = f"https://{fakeDomain}/{url}"
-			raise Exception("url without domain")
+		url = url.replace(fakeDomain, domain)
+		if domain not in url:
+			url = f"{baseUrl}/{url}"
 	else:	
-		url = baseUrl + "/" + (u_path if u_path else path)
+		url = baseUrl + "/" + (request.path if request.path else path)
 		query = request.query_string.decode("utf8")
 		if query:
 			url += "?" + query
@@ -86,4 +82,4 @@ def main(u_path):
 	responseFake.headers['Access-Control-Allow-Origin'] = '*'
 	return responseFake
 
-app.run(host='0.0.0.0', debug=True, ssl_context=('/root/Desktop/copier/cert.pem', '/root/Desktop/copier/key.pem'), port=443)
+app.run(host='0.0.0.0', port=443, debug=True, ssl_context=('/root/Desktop/copier/cert.pem', '/root/Desktop/copier/key.pem'))
