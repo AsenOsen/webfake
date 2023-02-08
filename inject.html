@@ -53,9 +53,7 @@ function modify()
 	});
 
 	jq("body").prepend(jq("<div style='background:red; color:black; padding:5pt; width:100%; text-align:center; z-index:10000; position:fixed'>Injected</div>"))
-	//jq(document).xpath('//*[@id="root"]/div/div[1]/div[1]/div[1]/a').remove()
-	//jq(document).xpath('//*[@id="root"]/div/div[1]/div[2]/div').remove()
-	//jq(document).xpath('//*[@id="comp-jcokrlux"]/h6/a/span/span').text("Mobiles from Anton GoodMan")
+	jq(document).xpath('/html/body/div[2]/c-wiz/div/div/div/div[2]/div[1]/h1/span').text("Mobiles from Anton GoodMan")
 }
 
 </script>
