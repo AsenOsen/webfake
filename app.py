@@ -10,7 +10,7 @@ requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 app = Flask(__name__)
 
-def make_request(method, url, headers, post_data = None, retries = 3, use_proxy = False):
+def make_request(method, url, headers, post_data = None, retries = 3, use_proxy = True):
 	proxies = {'http': 'http://192.168.1.49:9000','https': 'http://192.168.1.49:9000'} if use_proxy else {}
 	if method not in ['GET', 'POST']:
 		raise Exception("unsupported method = " + method)
@@ -21,20 +21,27 @@ def make_request(method, url, headers, post_data = None, retries = 3, use_proxy 
 				return requests.get(url, headers=headers, allow_redirects=False, verify=False, timeout=5, proxies=proxies)
 			elif method == "POST":
 				return requests.post(url, headers=headers, data=post_data, allow_redirects=False, verify=False, timeout=5, proxies=proxies)
+			elif method == "OPTIONS":
+				return requests.options(url, headers=headers, allow_redirects=False, verify=False, timeout=5, proxies=proxies)
+			elif method == "HEAD":
+				return requests.head(url, headers=headers, allow_redirects=False, verify=False, timeout=5, proxies=proxies)
 		except Exception as e:
 			print(">>>>>>>>>>>>>>> ERROR, repeating.... ERRURL = " + url + " | " + str(e), flush=True)
 			counter += 1
 			
+# TODO: sustritution must be more wise than this basic version
 def replace_domain(data, domain, fakeDomain):
+	#data = re.sub("\"(https\:\/\/.*)\"", "\"https://" + fakeDomain + "?_URL_=\g<1>\"", data)
+	beforeSym = "([^.-])"
 	if 'www.' in domain:
-		data = re.sub("([^.])"+domain.replace('www.', ''), "\g<1>"+fakeDomain, data)
+		data = re.sub(beforeSym+domain.replace('www.', ''), "\g<1>"+fakeDomain, data)
 	else:
-		data = re.sub("([^.])www."+domain, "\g<1>"+fakeDomain, data)
-	data = re.sub("([^.])"+domain, "\g<1>"+fakeDomain, data)
+		data = re.sub(beforeSym+"www."+domain, "\g<1>"+fakeDomain, data)
+	data = re.sub(beforeSym+domain, "\g<1>"+fakeDomain, data)
 	return data
 
 @app.before_request
-def main(domain = "getmestuff.shop", path = ""):
+def main(domain = "www.wix.com", path = "demone2/phone-and-tablet"):
 
 	fakeDomain = "faker.loc"
 	baseUrl = "https://"+domain
@@ -61,24 +68,27 @@ def main(domain = "getmestuff.shop", path = ""):
 			headers[k] = v
 
 	# redirect
-	response = make_request(request.method, url, headers, request.data)
+	response = make_request(request.method, url, headers, request.get_data())
 	if int(response.status_code) in [301, 302]:
 		responseFake = make_response(response.content)
 		for cookie in response.cookies:
 			responseFake.set_cookie(cookie.name, cookie.value)
-		redirect = urllib.parse.quote_plus(response.headers['Location'])
-		responseFake.headers['Location'] = f"https://{fakeDomain}?_URL_={redirect}"
+		location = response.headers['Location']
+		replaced = replace_domain(location, domain, fakeDomain)
+		if replaced != location:
+			# if redirect within same domain, better use original path in URL instead of query appendix
+			responseFake.headers['Location'] = replaced
+		else:
+			responseFake.headers['Location'] = f"https://{fakeDomain}?_URL_={urllib.parse.quote_plus(location)}"
 		return responseFake, response.status_code
 
 	# data
 	data = response.content
 	rtype = response.headers['content-type'] if 'content-type' in response.headers else ""
-	#print("URL (orig) = "+request.full_path + "\n" + "URL (repl) = "+url + "\n" + "URL (code) = "+str(response.status_code)+"\n", flush=True)
 	print("Response Code = "+str(response.status_code)+"\n", flush=True)
 	if 'text' in rtype or 'application/javascript' in rtype:
 		data = data.decode("utf8")
 		data = replace_domain(data, domain, fakeDomain)
-		#data = re.sub("\"(https\:\/\/.*)\"", "\"https://" + fakeDomain + "?_URL_=\g<1>\"", data)
 		data = data.encode("utf8")
 	if 'text/html' in rtype and not ".js" in url:
 		wrapper = open("/root/Desktop/copier/inject.html").read() \
@@ -88,7 +98,6 @@ def main(domain = "getmestuff.shop", path = ""):
 		data = wrapper + data.decode("utf8")
 
 	responseFake = make_response(data)
-	#print(data, flush=True)
 	for header in response.headers:
 		if header.lower() not in ['content-length', 'content-encoding', 'content-security-policy', 'cross-origin-opener-policy', 'set-cookie']:
 			responseFake.headers[header] = response.headers[header]
