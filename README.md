@@ -4,4 +4,6 @@
 - clever domain substitution
 	- do not substitute static content
 	- better search domains through HTML/JS code
+	- always substitute _URL_ but with original path
 - speedup HTTP requests
+- query parametrized domain (url+path)

