@@ -18,12 +18,13 @@ I am currently passive working on it, ant it is not production-ready! If you nee
 Consider this project as experimental!  
 It is currently on the stage of PoC, but still you can make it work with simple configuration:  
 
-1. Configure `app.py` in `Config` section (read comments there)
+1. Install python library dependencies: `pip3 install -r requirements.txt`
+2. Configure `app.py` in `Config` section (read comments there)
     1. Set original domain and path you want to mimick
     2. Write HTML/JS code in `inject.html` you want to inject in original site`s code
-2. Setup your fake domain. By default local domain used - `faker.loc`, configure it in local DNS settings (file `hosts`).
-3. Run `app.py` - `python3 app.py`
-4. Go to browser and open https://faker.loc
+3. Setup your fake domain. By default local domain used - `faker.loc`, configure it in local DNS settings (file `hosts`).
+4. Run `app.py` - `python3 app.py`
+5. Go to browser and open https://faker.loc
     1. If you use `path`, use it also in fake domain! So, according to default settings of `app.py` it should be - https://faker.loc/demone2/phone-and-tablet
 
 # TODO
